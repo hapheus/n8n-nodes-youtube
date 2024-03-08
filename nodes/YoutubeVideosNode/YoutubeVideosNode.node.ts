@@ -132,11 +132,11 @@ export class YoutubeVideosNode implements INodeType {
 				if (operation === 'channel') {
 					channelId = this.getNodeParameter('channel_id', itemIndex, '') as string;
 
-					let channels = await youtube.search(channelId, {
-						type: "channel",
-					});
-					const channel = channels.items[0];
-					let videos = await channel.videos.next(0);
+					const channel = await youtube.getChannel(channelId);
+					let videos = await channel?.videos.next(0);
+					if (!videos) {
+						videos = [];
+					}
 					const outputItems = videos.map(video => ({
 						json: {
 							id: video.id,
