@@ -6,7 +6,7 @@ import {
 	NodeOperationError,
 } from 'n8n-workflow';
 
-import {Client, PlaylistVideos} from "youtubei";
+import { Client, PlaylistVideos } from 'youtubei';
 
 export class YoutubeVideosNode implements INodeType {
 	description: INodeTypeDescription = {
@@ -32,6 +32,18 @@ export class YoutubeVideosNode implements INodeType {
 				required: true,
 				options: [
 					{
+						name: 'Get Channel',
+						value: 'get_channel',
+					},
+					{
+						name: 'Get Playlist',
+						value: 'get_playlist',
+					},
+					{
+						name: 'Get Video',
+						value: 'get_video',
+					},
+					{
 						name: 'Load Channel Videos',
 						value: 'channel',
 					},
@@ -43,12 +55,7 @@ export class YoutubeVideosNode implements INodeType {
 						name: 'Search Videos',
 						value: 'search',
 					},
-					{
-						name: 'Get Video',
-						value: 'video',
-					},
-				]
-
+				],
 			},
 			{
 				displayName: 'Channel ID',
@@ -58,7 +65,7 @@ export class YoutubeVideosNode implements INodeType {
 				placeholder: 'Channel ID',
 				displayOptions: {
 					show: {
-						'/operation': ['channel'],
+						'/operation': ['channel', 'get_channel'],
 					},
 				},
 			},
@@ -70,7 +77,7 @@ export class YoutubeVideosNode implements INodeType {
 				placeholder: 'Playlist ID',
 				displayOptions: {
 					show: {
-						'/operation': ['playlist'],
+						'/operation': ['playlist', 'get_playlist'],
 					},
 				},
 			},
@@ -106,7 +113,7 @@ export class YoutubeVideosNode implements INodeType {
 				placeholder: 'Video ID',
 				displayOptions: {
 					show: {
-						'/operation': ['video'],
+						'/operation': ['get_video'],
 					},
 				},
 			},
@@ -137,7 +144,7 @@ export class YoutubeVideosNode implements INodeType {
 					if (!videos) {
 						videos = [];
 					}
-					const outputItems = videos.map(video => ({
+					const outputItems = videos.map((video) => ({
 						json: {
 							id: video.id,
 							title: video.title,
@@ -151,7 +158,7 @@ export class YoutubeVideosNode implements INodeType {
 							uploadDate: video.uploadDate,
 							duration: video.duration,
 						},
-						pairedItem: {item: itemIndex},
+						pairedItem: { item: itemIndex },
 					}));
 					for (const item of outputItems) {
 						returnData.push(item);
@@ -177,7 +184,7 @@ export class YoutubeVideosNode implements INodeType {
 								uploadDate: video.uploadDate,
 								duration: video.duration,
 							},
-							pairedItem: {item: itemIndex},
+							pairedItem: { item: itemIndex },
 						});
 					}
 				} else if (operation === 'search') {
@@ -185,7 +192,7 @@ export class YoutubeVideosNode implements INodeType {
 					pageCount = this.getNodeParameter('pageCount', itemIndex, 1) as number;
 
 					let videos = await youtube.search(keywords, {
-						type: "video",
+						type: 'video',
 					});
 					for (const video of [...videos.items, ...(await videos.next(pageCount))]) {
 						returnData.push({
@@ -202,10 +209,10 @@ export class YoutubeVideosNode implements INodeType {
 								uploadDate: video.uploadDate,
 								duration: video.duration,
 							},
-							pairedItem: {item: itemIndex},
+							pairedItem: { item: itemIndex },
 						});
 					}
-				} else if (operation === 'video') {
+				} else if (operation === 'get_video') {
 					videoId = this.getNodeParameter('video_id', itemIndex, '') as string;
 
 					let video = await youtube.getVideo(videoId);
@@ -223,15 +230,47 @@ export class YoutubeVideosNode implements INodeType {
 								viewCount: video.viewCount,
 								likeCount: video.likeCount,
 								uploadDate: video.uploadDate,
-								tags: video.tags
+								tags: video.tags,
 							},
-							pairedItem: {item: itemIndex},
+							pairedItem: { item: itemIndex },
+						});
+					}
+				} else if (operation === 'get_channel') {
+					channelId = this.getNodeParameter('channel_id', itemIndex, '') as string;
+
+					let channel = await youtube.getChannel(channelId);
+
+					if (channel) {
+						returnData.push({
+							json: {
+								id: channel.id,
+								name: channel.name,
+								thumbnail: channel.thumbnails?.best,
+								url: channel.url,
+								banner: channel.banner?.best,
+								subscriberCount: channel.subscriberCount,
+							},
+							pairedItem: { item: itemIndex },
+						});
+					}
+				} else if (operation === 'get_playlist') {
+					playlistId = this.getNodeParameter('playlist_id', itemIndex, '') as string;
+
+					let playlist = await youtube.getPlaylist(playlistId);
+
+					if (playlist) {
+						returnData.push({
+							json: {
+								id: playlist.id,
+								title: playlist.title,
+							},
+							pairedItem: { item: itemIndex },
 						});
 					}
 				}
 			} catch (error) {
 				if (this.continueOnFail()) {
-					items.push({json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex});
+					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
 				} else {
 					if (error.context) {
 						error.context.itemIndex = itemIndex;

@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-youtube",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "load youtube videos in your n8n workflow without credentials and limitations",
   "keywords": [
     "n8n-community-node-package",
