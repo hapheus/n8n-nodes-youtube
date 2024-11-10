@@ -125,6 +125,13 @@ export class YoutubeVideosNode implements INodeType {
 		const returnData: INodeExecutionData[] = [];
 		const youtube = new Client();
 
+		const generateDetailedError = function(error: any, operation: string, params: Record<string, any>) {
+			const details = Object.entries(params)
+				.map(([key, value]) => `${key}: ${value}`)
+				.join(', ');
+			return `Error in operation '${operation}' with parameters [${details}]: ${error.message}`;
+		};
+
 		let operation: string;
 		let channelId: string;
 		let playlistId: string;
@@ -269,16 +276,33 @@ export class YoutubeVideosNode implements INodeType {
 					}
 				}
 			} catch (error) {
+				const operation = this.getNodeParameter('operation', itemIndex, '') as string;
+				const params: Record<string, any> = {
+					operation,
+				};
+				switch (operation) {
+					case 'channel':
+					case 'get_channel':
+						params.channel_id = this.getNodeParameter('channel_id', itemIndex, '') as string;
+						break;
+					case 'playlist':
+					case 'get_playlist':
+						params.playlist_id = this.getNodeParameter('playlist_id', itemIndex, '') as string;
+						break;
+					case 'search':
+						params.keywords = this.getNodeParameter('keywords', itemIndex, '') as string;
+						params.pageCount = this.getNodeParameter('pageCount', itemIndex, 1) as number;
+						break;
+					case 'get_video':
+						params.video_id = this.getNodeParameter('video_id', itemIndex, '') as string;
+						break;
+				}
+				const detailedErrorMessage = generateDetailedError(error, operation, params);
+
 				if (this.continueOnFail()) {
-					items.push({ json: this.getInputData(itemIndex)[0].json, error, pairedItem: itemIndex });
+					returnData.push({ json: { error: detailedErrorMessage }, error, pairedItem: itemIndex });
 				} else {
-					if (error.context) {
-						error.context.itemIndex = itemIndex;
-						throw error;
-					}
-					throw new NodeOperationError(this.getNode(), error, {
-						itemIndex,
-					});
+					throw new NodeOperationError(this.getNode(), detailedErrorMessage, { itemIndex });
 				}
 			}
 		}
